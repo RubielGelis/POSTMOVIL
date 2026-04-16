@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">postmovil</string>
+    <string name="title_activity_main">postmovil</string>
+    <string name="package_name">com.postmovil.app</string>
+    <string name="custom_url_scheme">com.postmovil.app</string>
+</resources>
