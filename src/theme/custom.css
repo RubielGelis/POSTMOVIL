@@ -175,11 +175,28 @@ ion-tab-bar {
   border-radius: 3px;
 }
 
-/* Barcode Scanner Styles */
-body.barcode-scanner-active {
-  --ion-background-color: transparent !important;
-  --ion-text-color: transparent !important;
-  background: transparent !important;
+/* Fix for dark text in popovers/selects */
+ion-select::part(text),
+ion-select::part(placeholder),
+ion-select-option {
+  color: var(--text-light) !important;
+}
+
+/* Fix for Alert/ActionSheet/Select Popover items in dark mode */
+.select-interface-option .alert-radio-label,
+.select-interface-option .action-sheet-button-inner,
+.popover-viewport ion-list ion-item ion-label {
+  color: var(--text-light) !important;
+}
+
+/* Ensure global alert/popover backgrounds match theme */
+.alert-wrapper, .popover-content, .action-sheet-container {
+  --background: var(--dark-surface) !important;
+  --color: var(--text-light) !important;
+}
+
+.alert-radio-label {
+    color: var(--text-light) !important;
 }
 
 body.barcode-scanner-active ion-content {

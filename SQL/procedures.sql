@@ -3,6 +3,7 @@ DROP TRIGGER IF EXISTS trg_after_sale_item_insert;
 CREATE TRIGGER IF NOT EXISTS trg_after_sale_item_insert
 AFTER INSERT ON SaleItems
 FOR EACH ROW
+WHEN (SELECT track_stock FROM Products WHERE id = NEW.product_id) = 1
 BEGIN
     UPDATE Products
     SET stock = stock - NEW.quantity
@@ -23,8 +24,12 @@ SELECT
     s.id, 
     s.date, 
     s.total, 
-    s.type, 
+    s.discount,
+    s.type,
     s.status, 
+    s.void_number,
+    s.void_reason,
+    s.void_date,
     c.name as client_name,
     u.name as user_name
 FROM Sales s
@@ -37,7 +42,7 @@ CREATE VIEW IF NOT EXISTS vw_client_balances AS
 SELECT 
     c.id as client_id,
     c.name as client_name,
-    COALESCE(SUM(CASE WHEN s.type = 'credit' THEN s.total ELSE 0 END), 0) -
+    COALESCE(SUM(CASE WHEN s.type = 'credit' AND s.status = 'completed' THEN s.total ELSE 0 END), 0) -
     COALESCE((SELECT SUM(amount) FROM Payments p WHERE p.client_id = c.id), 0) as balance_due
 FROM Clients c
 LEFT JOIN Sales s ON c.id = s.client_id

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { IonPage, IonContent, IonHeader, IonToolbar, IonTitle, IonList, IonItem, IonLabel, IonFab, IonFabButton, IonIcon, IonModal, IonButton, IonInput, useIonToast, IonBadge, useIonViewWillEnter } from '@ionic/react';
+import { IonPage, IonContent, IonHeader, IonToolbar, IonTitle, IonList, IonItem, IonLabel, IonFab, IonFabButton, IonIcon, IonModal, IonButton, IonInput, useIonToast, IonBadge, useIonViewWillEnter, IonToggle, IonSelect, IonSelectOption } from '@ionic/react';
 import { Plus, Barcode, X } from 'lucide-react';
 import { sqliteService } from '../database/sqlite.service';
 import { BarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
@@ -13,8 +13,12 @@ const Inventory: React.FC = () => {
     const [editId, setEditId] = useState<number | null>(null);
     const [barcode, setBarcode] = useState('');
     const [name, setName] = useState('');
+    const [cost, setCost] = useState('');
     const [price, setPrice] = useState('');
     const [stock, setStock] = useState('');
+    const [trackStock, setTrackStock] = useState(true);
+    const [unitType, setUnitType] = useState('unit');
+    const [isWeighed, setIsWeighed] = useState(false);
 
     const loadProducts = async () => {
         try {
@@ -34,8 +38,12 @@ const Inventory: React.FC = () => {
         setEditId(product.id);
         setBarcode(product.barcode || '');
         setName(product.name);
+        setCost(product.cost?.toString() || '0');
         setPrice(product.price.toString());
         setStock(product.stock.toString());
+        setTrackStock(product.track_stock === 1);
+        setUnitType(product.unit_type || 'unit');
+        setIsWeighed(product.is_weighed === 1);
         setShowModal(true);
     };
 
@@ -43,8 +51,12 @@ const Inventory: React.FC = () => {
         setEditId(null);
         setBarcode('');
         setName('');
+        setCost('');
         setPrice('');
         setStock('');
+        setTrackStock(true);
+        setUnitType('unit');
+        setIsWeighed(false);
         setShowModal(true);
     };
 
@@ -80,16 +92,18 @@ const Inventory: React.FC = () => {
 
         try {
             const db = sqliteService.getDb();
+            const trackStockVal = trackStock ? 1 : 0;
+            const isWeighedVal = isWeighed ? 1 : 0;
             if (editId) {
                 await db.run(
-                    'UPDATE Products SET barcode = ?, name = ?, price = ?, stock = ? WHERE id = ?',
-                    [barcode || null, name, parseFloat(price) || 0, parseInt(stock, 10) || 0, editId]
+                    'UPDATE Products SET barcode = ?, name = ?, cost = ?, price = ?, stock = ?, track_stock = ?, unit_type = ?, is_weighed = ? WHERE id = ?',
+                    [barcode || null, name, parseFloat(cost) || 0, parseFloat(price) || 0, parseFloat(stock) || 0, trackStockVal, unitType, isWeighedVal, editId]
                 );
                 present({ message: 'Producto actualizado', duration: 2000, color: 'success' });
             } else {
                 await db.run(
-                    'INSERT INTO Products (barcode, name, price, stock) VALUES (?, ?, ?, ?)',
-                    [barcode || null, name, parseFloat(price) || 0, parseInt(stock, 10) || 0]
+                    'INSERT INTO Products (barcode, name, cost, price, stock, track_stock, unit_type, is_weighed) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                    [barcode || null, name, parseFloat(cost) || 0, parseFloat(price) || 0, parseFloat(stock) || 0, trackStockVal, unitType, isWeighedVal]
                 );
                 present({ message: 'Producto guardado', duration: 2000, color: 'success' });
             }
@@ -150,8 +164,8 @@ const Inventory: React.FC = () => {
                 
                 <IonList style={{ background: 'transparent' }}>
                     {products.map(p => (
-                        <div key={p.id} className="glass-panel" style={{ marginBottom: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
+                        <div key={p.id} className="glass-panel" style={{ marginBottom: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} onClick={() => openEditModal(p)}>
+                            <div style={{ flex: 1 }}>
                                 <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>{p.name}</div>
                                 <div className="card-subtitle">{p.barcode || 'Sin código'}</div>
                                 <div className="gradient-text" style={{ fontWeight: 'bold' }}>${p.price.toFixed(2)}</div>
@@ -159,7 +173,7 @@ const Inventory: React.FC = () => {
                             <div style={{ textAlign: 'right' }}>
                                 <IonBadge color={p.stock <= 5 ? 'danger' : 'primary'} style={{ marginBottom: '8px' }}>{p.stock} unid.</IonBadge>
                                 <br/>
-                                <IonButton size="small" fill="outline" style={{ '--border-radius': 'var(--radius-sm)' }} onClick={() => { setSelectedProduct(p); setAdjustModal(true); }}>
+                                <IonButton size="small" fill="outline" style={{ '--border-radius': 'var(--radius-sm)' }} onClick={(e) => { e.stopPropagation(); setSelectedProduct(p); setAdjustModal(true); }}>
                                     Ajustar
                                 </IonButton>
                             </div>
@@ -193,8 +207,33 @@ const Inventory: React.FC = () => {
                         <IonInput label="Nombre del producto" labelPlacement="stacked" value={name} onIonChange={e => setName(e.detail.value!)} />
                         
                         <div style={{ display: 'flex', gap: '16px' }}>
-                            <IonInput type="number" label="Precio" labelPlacement="stacked" value={price} onIonChange={e => setPrice(e.detail.value!)} />
-                            <IonInput type="number" label="Stock" labelPlacement="stacked" value={stock} onIonChange={e => setStock(e.detail.value!)} />
+                            <IonInput type="number" label="Costo" labelPlacement="stacked" value={cost} onIonChange={e => setCost(e.detail.value!)} />
+                            <IonInput type="number" label="Precio Venta" labelPlacement="stacked" value={price} onIonChange={e => setPrice(e.detail.value!)} />
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', marginTop: '8px' }}>
+                            <IonInput type="number" label="Stock Actual" labelPlacement="stacked" value={stock} onIonChange={e => setStock(e.detail.value!)} style={{ flex: 1 }} />
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingBottom: '8px' }}>
+                                <IonLabel style={{ fontSize: '0.75rem', color: 'var(--ion-color-step-600)', marginBottom: '4px' }}>Controlar Stock</IonLabel>
+                                <IonToggle checked={trackStock} onIonChange={e => setTrackStock(e.detail.checked)} />
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
+                            <div style={{ flex: 1 }}>
+                                <IonLabel style={{ fontSize: '0.75rem', color: 'var(--ion-color-step-600)' }}>Unidad</IonLabel>
+                                <IonSelect value={unitType} onIonChange={e => setUnitType(e.detail.value)}>
+                                    <IonSelectOption value="unit">Unidad</IonSelectOption>
+                                    <IonSelectOption value="kg">Kilogramo (kg)</IonSelectOption>
+                                    <IonSelectOption value="lb">Libra (lb)</IonSelectOption>
+                                    <IonSelectOption value="lt">Litro (L)</IonSelectOption>
+                                    <IonSelectOption value="m">Metro (m)</IonSelectOption>
+                                </IonSelect>
+                            </div>
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                <IonLabel style={{ fontSize: '0.75rem', color: 'var(--ion-color-step-600)', marginBottom: '4px' }}>Venta por Peso</IonLabel>
+                                <IonToggle checked={isWeighed} onIonChange={e => setIsWeighed(e.detail.checked)} />
+                            </div>
                         </div>
 
                         <IonButton expand="block" className="beautiful-btn" onClick={saveProduct} style={{ marginTop: '24px' }}>
